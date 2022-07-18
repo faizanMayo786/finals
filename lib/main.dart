@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
@@ -35,9 +36,44 @@ class _MyWeatherAppState extends State<MyWeatherApp> {
 
   String weatherConditions = '';
 
-  getWeather() async {
+  Position? currentPosition;
+  @override
+  initState() {
+    super.initState();
+    _determinePosition();
+    getCurrentLocation();
+  }
+
+  getCurrentLocation() async {
+    currentPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    getWeather(currentPosition!.latitude, currentPosition!.longitude);
+  }
+
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print('Location services are disabled.');
+    }
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        print('Location permissions are denied');
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      print(
+          'Location permissions are permanently denied, we cannot request for permission anymore');
+    }
+    return await Geolocator.getCurrentPosition();
+  }
+
+  getWeather(double lat, double lon) async {
     var apiUrl =
-        'https://api.openweathermap.org/data/2.5/weather?lat=31&lon=74&appid=dbbb70b17c9af09d1086361061f9d7be';
+        'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=d29bf9f414cd29a6c433123319353ccb';
     var response = await http.get(Uri.parse(apiUrl));
     dynamic data = jsonDecode(response.body);
     setState(() {
@@ -78,7 +114,7 @@ class _MyWeatherAppState extends State<MyWeatherApp> {
             ),
             ElevatedButton(
               onPressed: () {
-                getWeather();
+                getCurrentLocation();
               },
               child: Text('Fetch Data'),
             ),
